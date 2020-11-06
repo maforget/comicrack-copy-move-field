@@ -1,1 +1,4 @@
 Moves or copies info from one field to another. Can either replace or append to the destination field.
+
+ADDED :
+When using Released Time, Added Time or Published as a Source it will set the appropriate Day, Month or Year if chosen has a destination. To set all 3 in 1 shot, just use Published as a destination.

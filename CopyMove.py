@@ -10,6 +10,7 @@ Copyright Stonepaw 2013. Anyone is free to use all or any of this code as long a
 
 import clr
 import System
+import datetime
 clr.AddReference('System.Windows.Forms')
 clr.AddReference('System.Drawing')
 
@@ -39,13 +40,13 @@ def CopyMoveField(books):
                 settings["user_text"] = f._UserText.Text
                 settings["seperator"] = f._seperator.Text
                 if f._copy.Checked:                        
-                        settings["source_mode"] == "Copy"
-                else:
-                        settings["source_mode"] == "Move"
+                        settings["source_mode"] = "Copy"
+                elif f._move.Checked:
+                        settings["source_mode"] = "Move"
                 if f._replace.Checked:
-                        settings["destination_mode"] == "Replace"
-                else:
-                        settings["destination_mode"] == "Append"		
+                        settings["destination_mode"] = "Replace"
+                elif f._append.Checked:
+                        settings["destination_mode"] = "Append"		
 		save_settings(settings)
 		
 	else:
@@ -162,6 +163,7 @@ class CopyMoveFieldForm(Form):
 		self._source.Size = System.Drawing.Size(187, 21)
 		self._source.TabIndex = 0
 		self._source.Items.AddRange(System.Array[System.String]([
+		"Added Time",
 		"Age Rating",
 		"Alternate Count",
 		"Alternate Number",		
@@ -191,9 +193,11 @@ class CopyMoveFieldForm(Form):
 		"Notes",
 		"Number",
 		"Penciller",
+		"Published",
 		"Publisher",
                 "Review",
 		"Scan Information",
+		"Released Time",
 		"Series",
                 "Series Group",
                 "Story Arc",
@@ -252,6 +256,7 @@ class CopyMoveFieldForm(Form):
 		self._destination.Size = System.Drawing.Size(190, 21)
 		self._destination.TabIndex = 1
 		self._destination.Items.AddRange(System.Array[System.String]([
+		"Added Time",
 		"Age Rating",
 		"Alternate Count",
 		"Alternate Number",		
@@ -281,9 +286,11 @@ class CopyMoveFieldForm(Form):
 		"Notes",
 		"Number",
 		"Penciller",
+		"Published",
 		"Publisher",
                 "Review",
 		"Scan Information",
+		"Released Time",
 		"Series",
                 "Series Group",
                 "Story Arc",
@@ -414,6 +421,7 @@ class CopyMoveFieldForm(Form):
 		self.FormClosing += self.CheckClosing
 
 	def SouceIndexChanged(self, sender, e):
+		self._append.Enabled = True
 		if sender.SelectedItem == "User Text":
 			self._UserText.Enabled = True
 			self._copy.Enabled = False
@@ -423,6 +431,11 @@ class CopyMoveFieldForm(Form):
 			self._UserText.Enabled = False
 			self._copy.Enabled = True
 			self._move.Enabled = True
+			
+			if sender.SelectedItem in ["Released Time", "Added Time"]:
+				self._replace.Checked = True
+				self._append.Enabled = False
+
 
 	def CheckClosing(self, sender, e):
 		if self.worker.IsBusy:
@@ -534,7 +547,7 @@ def CopyField(worker, books, source, destination, append, seperator):
 		readsource = "Shadow" + source
 	else:
 		readsource = source
-	
+
 	failed = 0
 	count = 0
 	report = System.Text.StringBuilder()
@@ -542,8 +555,33 @@ def CopyField(worker, books, source, destination, append, seperator):
 
 		if worker.CancellationPending :
 			return
+		
+		if source in ["ReleasedTime", "AddedTime", "Published"]:
+			d = getattr(book, source)
+			try:
+				if destination == "Published" :
+					setattr(book, "Day", d.Day)
+					setattr(book, "Month", d.Month)
+					setattr(book, "Year", d.Year)
 
-		if append:
+				elif destination in  ["Year", "Month", "Day"]:
+					if destination == "Year" :
+						value = d.Year
+					if destination == "Month" :
+						value = d.Month
+					if destination == "Day" :
+						value = d.Day
+					setattr(book, destination, value)
+				else : 
+					setattr(book, destination, unicode(getattr(book, readsource)))
+			except TypeError:
+				try:
+					setattr(book, destination, getattr(book, readsource))
+				except:
+					failed += 1
+					report.Append("Unable to copy %s: %s to %s in book\n\n%s Vol.%s #%s" % (source, unicode(getattr(book, readsource)), destination, book.ShadowSeries, book.ShadowVolume, book.ShadowNumber))
+
+		elif append:
 			orig = unicode(getattr(book, destination))
 			text = unicode(getattr(book, readsource))
 			orig += seperator + text
@@ -562,7 +600,7 @@ def CopyField(worker, books, source, destination, append, seperator):
 			except TypeError:
 				try:
 					setattr(book, destination, int(getattr(book, readsource)))
-				except ValueError:
+				except:
 					failed += 1
 					report.Append("Unable to copy %s: %s to %s in book\n\n%s Vol.%s #%s" % (source, unicode(getattr(book, readsource)), destination, book.ShadowSeries, book.ShadowVolume, book.ShadowNumber))
 
@@ -597,7 +635,40 @@ def MoveField(worker, books, source, destination, append, seperator):
 		if worker.CancellationPending :
 			return
 
-		if append:
+		if source in ["ReleasedTime", "AddedTime", "Published"]:
+			d = getattr(book, source)
+			ed = System.DateTime(0001,1,1)
+			try:
+				if destination == "Published" :
+					setattr(book, "Day", d.Day)
+					setattr(book, "Month", d.Month)
+					setattr(book, "Year", d.Year)
+
+				elif destination in  ["Year", "Month", "Day"]:
+					if destination == "Year" :
+						value = d.Year
+					if destination == "Month" :
+						value = d.Month
+					if destination == "Day" :
+						value = d.Day
+					setattr(book, destination, value)
+				else : 
+					setattr(book, destination, unicode(getattr(book, readsource)))
+				setattr(book, source, ed)
+			except TypeError:
+				try:
+					setattr(book, destination, getattr(book, readsource))
+					if source == "Published" :
+						setattr(book, "Day", -1)
+						setattr(book, "Month", -1)
+						setattr(book, "Year", -1)
+					else:
+						setattr(book, source, ed)
+				except:
+					failed += 1
+					report.Append("Unable to copy %s: %s to %s in book\n\n%s Vol.%s #%s" % (source, unicode(getattr(book, readsource)), destination, book.ShadowSeries, book.ShadowVolume, book.ShadowNumber))
+
+		elif append:
 			orig = unicode(getattr(book, destination))
 			text = unicode(getattr(book, readsource))
 			orig += seperator + text
@@ -622,7 +693,7 @@ def MoveField(worker, books, source, destination, append, seperator):
 				try:
 					setattr(book, destination, int(getattr(book, readsource)))
 					setattr(book, source, empty)
-				except ValueError:
+				except:
 					failed += 1
 					report.Append("Unable to move %s: %s to %s in book\n\n%s Vol.%s #%s" % (source, unicode(getattr(book, readsource)), destination, book.ShadowSeries, book.ShadowVolume, book.ShadowNumber))
 
