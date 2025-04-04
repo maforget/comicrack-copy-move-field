@@ -182,6 +182,8 @@ class CopyMoveFieldForm(Form):
 		"Cover Artist",
 		"Editor",
 		"Format",
+        "File Modified Time",
+        "File Creation Time",
 		"Genre",
 		"Imprint",
 		"Inker",
@@ -556,7 +558,7 @@ def CopyField(worker, books, source, destination, append, seperator):
 		if worker.CancellationPending :
 			return
 		
-		if source in ["ReleasedTime", "AddedTime", "Published"]:
+		if source in ["ReleasedTime", "AddedTime", "Published", "FileModifiedTime", "FileCreationTime"]:
 			d = getattr(book, source)
 			try:
 				if destination == "Published" :
